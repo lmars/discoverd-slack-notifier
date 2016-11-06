@@ -100,22 +100,24 @@ func (n *Notifier) Watch(name string) error {
 	}
 	go func() {
 		for {
-			event, ok := <-events
-			if !ok {
-				break
+			for {
+				event, ok := <-events
+				if !ok {
+					break
+				}
+				select {
+				case n.Events <- event:
+				default:
+					log.Warn("notifier channel overflow")
+				}
 			}
-			select {
-			case n.Events <- event:
-			default:
-				log.Warn("notifier channel overflow")
+			log.Warn("event stream disconnected")
+			for {
+				if err := connect(); err == nil {
+					break
+				}
+				time.Sleep(time.Second)
 			}
-		}
-		log.Warn("event stream disconnected")
-		for {
-			if err := connect(); err == nil {
-				break
-			}
-			time.Sleep(time.Second)
 		}
 	}()
 	return nil
